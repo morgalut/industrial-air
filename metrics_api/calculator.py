@@ -1,15 +1,17 @@
-# metrics_api/calculator.py
-
 from __future__ import annotations
+
+from typing import Any
 
 import pandas as pd
 
+MetricResult = dict[str, Any]
 
-def compute_operational_metrics(df: pd.DataFrame) -> list[dict]:
+
+def compute_operational_metrics(df: pd.DataFrame) -> list[MetricResult]:
     if df.empty:
         return []
 
-    results: list[dict] = []
+    results: list[MetricResult] = []
 
     for device_id, device_df in df.groupby("device_id"):
         active_mask = (device_df["rpm"] > 100) & (device_df["power_kw"] > 0)
@@ -20,10 +22,9 @@ def compute_operational_metrics(df: pd.DataFrame) -> list[dict]:
 
         total_power = float(device_df.loc[active_mask, "power_kw"].sum())
         total_flow = float(device_df.loc[active_mask, "flow_m3h"].sum())
+
         specific_power = round(total_power / total_flow, 6) if total_flow > 0 else None
-
         cycle_count = int(active_mask.astype(int).diff().eq(1).sum())
-
         total_flow_volume = _calculate_total_flow_volume(device_df)
 
         results.append(

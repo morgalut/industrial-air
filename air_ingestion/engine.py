@@ -31,6 +31,10 @@ class IngestionEngine:
         config = config or ProcessingConfig()
 
         raw_df = self.repository.fetch_station_data(station_id)
+
+        if raw_df.empty:
+            raise ValueError(f"No sensor data found for station_id={station_id}")
+
         row_count_before = len(raw_df)
 
         self._validate_required_columns(raw_df)
@@ -38,7 +42,7 @@ class IngestionEngine:
         missing_percent = calculate_missing_percent(raw_df)
 
         ranges = {
-            rule.name: (rule.min_value, rule.max_value)
+            rule.canonical_name: (rule.min_value, rule.max_value)
             for rule in self.schema.columns
             if rule.min_value is not None or rule.max_value is not None
         }
@@ -53,10 +57,12 @@ class IngestionEngine:
             "temperature_c",
         ]
 
+        flatline_window = self._resolve_flatline_window(config)
+
         flatline_counts, flatline_issues = detect_flatlines(
             raw_df,
             columns=numeric_columns,
-            window=config.flatline_window,
+            window=flatline_window,
         )
 
         clean_df = self._clean(raw_df, config)
@@ -75,7 +81,7 @@ class IngestionEngine:
 
     def _validate_required_columns(self, df: pd.DataFrame) -> None:
         required_columns = {
-            rule.name
+            rule.canonical_name
             for rule in self.schema.columns
             if rule.required
         }
@@ -84,6 +90,18 @@ class IngestionEngine:
 
         if missing_columns:
             raise ValueError(f"Missing required columns: {sorted(missing_columns)}")
+
+    def _resolve_flatline_window(self, config: ProcessingConfig) -> int:
+        if config.flatline_window is not None:
+            return config.flatline_window
+
+        schema_windows = [
+            sensor.flatline_threshold_minutes
+            for sensor in self.schema.sensor_types.values()
+            if sensor.flatline_threshold_minutes is not None
+        ]
+
+        return min(schema_windows, default=5)
 
     def _clean(
         self,

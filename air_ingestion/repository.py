@@ -28,11 +28,11 @@ class SQLiteSensorRepository(AbstractSensorRepository):
             timestamp,
             station_id,
             device_id,
-            pressure_bar,
-            flow_m3h,
-            power_kw,
-            rpm,
-            temperature_c
+            discharge_pressure AS pressure_bar,
+            air_flow_rate AS flow_m3h,
+            power_consumption AS power_kw,
+            motor_speed AS rpm,
+            discharge_temp AS temperature_c
         FROM sensor_readings
         WHERE station_id = ?
         ORDER BY timestamp ASC

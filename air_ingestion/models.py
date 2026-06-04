@@ -8,7 +8,6 @@ from typing import Literal
 import pandas as pd
 from pydantic import BaseModel, Field
 
-
 MissingStrategy = Literal["drop", "fill", "interpolate"]
 
 
@@ -16,19 +15,33 @@ class ProcessingConfig(BaseModel):
     frequency: str = Field(default="5min")
     missing_strategy: MissingStrategy = Field(default="interpolate")
     fill_value: float = Field(default=0.0)
-    flatline_window: int = Field(default=5)
+    flatline_window: int | None = Field(default=None)
 
 
 class ColumnRule(BaseModel):
-    name: str
+    source_name: str
+    canonical_name: str
     dtype: str
     required: bool = True
+    unit: str | None = None
     min_value: float | None = None
     max_value: float | None = None
 
 
+class SensorTypeRule(BaseModel):
+    source_name: str
+    canonical_name: str
+    category: str | None = None
+    typical_min: float | None = None
+    typical_max: float | None = None
+    flatline_threshold_minutes: int | None = None
+    description: str | None = None
+
+
 class SensorSchema(BaseModel):
+    version: str
     columns: list[ColumnRule]
+    sensor_types: dict[str, SensorTypeRule]
 
 
 @dataclass(frozen=True)
